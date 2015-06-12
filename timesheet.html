@@ -1,0 +1,339 @@
+<html>
+<body>
+
+
+
+
+<script type="text/javascript">
+var tableToExcel = (function() {
+  var uri = 'data:application/vnd.ms-excel;base64,'
+    , template = '<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40"><head><!--[if gte mso 9]><xml><x:ExcelWorkbook><x:ExcelWorksheets><x:ExcelWorksheet><x:Name>{worksheet}</x:Name><x:WorksheetOptions><x:DisplayGridlines/></x:WorksheetOptions></x:ExcelWorksheet></x:ExcelWorksheets></x:ExcelWorkbook></xml><![endif]--></head><body><table>{table}</table></body></html>'
+    , base64 = function(s) { return window.btoa(unescape(encodeURIComponent(s))) }
+    , format = function(s, c) { return s.replace(/{(\w+)}/g, function(m, p) { return c[p]; }) }
+  return function(table, name) {
+    if (!table.nodeType) table = document.getElementById(table)
+    var ctx = {worksheet: name || 'Worksheet', table: table.innerHTML}
+    window.location.href = uri + base64(format(template, ctx))
+  }
+})()
+</script>
+
+<h1>Timesheet</h1>
+
+<table>
+	<tr>
+		<td>In Time</td>
+		<td><input type="datetime-local" id="dtIn"/>
+<input type="button" onclick="setInTime()" value="Set InTime">
+		</td>
+	</tr>
+	<tr>
+		<td>Out Time</td>
+		<td><input type="datetime-local" id="dtOut"/>
+<input type="button" onclick="setOutTime()" value="Set OutTime">
+		</td>
+	</tr>
+	<tr>
+		<td>Remark</td>
+		<td><input type="text" id="txtRemark"/></td>
+	</tr>
+	<tr>
+	<td></td>
+	<td>
+		<input type="checkbox" id="chkleave"> Leave / Holiday
+	</td>
+	</tr>
+	<tr>
+		<td colspan="3">
+		<input type="button" onclick="makeEntry()" value="Todays In/Out">
+		<input type="button" onclick="showEntry()" value="Show Timesheet">
+		<input type="button" onclick="fillFullTimesheet()" value="Fill Timesheet">
+		</td>
+	</tr>
+</table>
+<br><br>
+<input type="button" onclick="tableToExcel('mainTable', 'W3C Example Table')" value="Export to Excel">
+<table id="sampleTable" style="display:none;">
+	<tr><th colspan="6" style="background-color: rgb(215, 72, 231);border:1px solid;">Timesheet</th></tr>
+	<tr><th colspan="6" style="  background-color: rgb(108, 203, 19);border:1px solid;">Employee Details</th></tr>
+	<tr>
+	<th colspan="1" style="background-color:rgb(197, 203, 203);border:1px solid;">Company E Code</th><td style="border:1px solid;" colspan="2"></td>
+	<th colspan="1" style="background-color:rgb(197, 203, 203);border:1px solid;">Name</th><td colspan="2" style="border:1px solid;text-align:left;">Mahipatsinh H Jadav</td>
+	</tr>
+	<tr>
+	<th colspan="1" style="background-color:rgb(197, 203, 203);border:1px solid;">Project Joining Date</th><td colspan="2" style="border:1px solid;text-align:left;">21-Apr-15</td>
+	<th colspan="1" style="background-color:rgb(197, 203, 203);border:1px solid;">Client</th><td colspan="2" style="border:1px solid;text-align:left;">Polycom Technology</td>
+	</tr>
+	<tr>
+	<th colspan="1" style="background-color:rgb(197, 203, 203);border:1px solid;">Cilent ID</th><td colspan="2" style="border:1px solid;text-align:left;">mahipatsinh.jadav@polycom.com</td>
+	<th colspan="1" style="background-color:rgb(197, 203, 203);border:1px solid;">Location</th><td colspan="2" style="border:1px solid;text-align:left;">Bangalore</td>
+	</tr>
+	<tr>
+	<th colspan="1" style="background-color:rgb(197, 203, 203);border:1px solid;">Project Manager</th><td colspan="2" style="border:1px solid;text-align:left;">Gaurav Gupta</td>
+	<th colspan="1" style="background-color:rgb(197, 203, 203);border:1px solid;">Project Name</th><td colspan="2" style="border:1px solid;text-align:left;">Colud Axis - WSP</td>
+	</tr>
+	<tr><th colspan="6" style="background-color: rgb(31, 186, 242);font-size:16px;font-weight:bold;border:1px solid;" id="period"></th></tr>
+	<tr><th colspan="6" id="fromto" style="border:1px solid;background-color: rgb(231, 138, 72);">Daily Docket</th></tr>
+	<tr><th colspan="6" style="background-color: rgb(24, 72, 223);border:1px solid;">Daily Docket</th></tr>
+	<tr id="dataHeaderRow">
+		<th style="background-color:rgb(197, 203, 203);border:1px solid;">Date</th>
+		<th style="background-color:rgb(197, 203, 203);border:1px solid;">Day</th>
+		<th style="background-color:rgb(197, 203, 203);border:1px solid;">Normal Hours</th>
+		<th style="background-color:rgb(197, 203, 203);border:1px solid;">In Time</th>
+		<th style="background-color:rgb(197, 203, 203);border:1px solid;">Out Time</th>
+		<th style="background-color:rgb(197, 203, 203);border:1px solid;"  >Remark </th>
+	</tr>
+	
+</table>
+<table id="mainTable" style="border:1px solid"></table>
+<script type="text/javascript">
+	Date.prototype.addHours= function(h){
+    	this.setHours(this.getHours()+h);
+    	return this;
+    }
+    var setInputTime =(function(currentDate){
+		var timezoneOffset = currentDate.getTimezoneOffset() * 60 * 1000;
+		var localDate = new Date(currentDate.getTime() - timezoneOffset);
+		var localDateISOString = localDate.toISOString().replace('Z', '');
+		return localDateISOString;
+	});
+	var getInputTime =(function(currentDate){
+		currentDate = new Date(currentDate);
+		var timezoneOffset =currentDate.getTimezoneOffset() * 60 * 1000;
+		var localDate = new Date(currentDate.getTime() + timezoneOffset);
+		var localDateISOString = localDate.toISOString().replace('Z', '');
+		return localDateISOString;
+	});
+	var fillFullTimesheet =(function(){
+		var todaysInDate = new Date(getInputTime(document.getElementById('dtIn').value));
+		var todaysDate = todaysInDate.getDate();
+
+		if(todaysDate != 1){
+			var objTimesheet = JSON.parse(localStorage.getItem('timesheet')) || [];	
+			var jsonData = {};
+			var isDataExist =false;
+			for(var i=1;i <= todaysDate;i++){
+				  isDataExist =false;
+
+				 
+				  for(var j=0;j < objTimesheet.length;j++){
+				  	var strThisDate =new Date(objTimesheet[j].todaysDate).getDate();
+				  	if(strThisDate == i){
+						isDataExist = true;
+						break;
+				  	}
+				  }
+				  if(!isDataExist){
+				  	var currentMonth = todaysInDate.getMonth();
+				  	var currentYear = todaysInDate.getFullYear();
+      				var currentDate = i + "-" + getCurrentMonth(currentMonth) + "-" + currentYear;
+      				var  objDate = new Date(currentDate);
+					var currentDay = getDayOfWeek(objDate.getDay());
+					var index = i-1;
+					if(objTimesheet[index].todaysDay == 'Saturday'){
+		      			objTimesheet[index].NormalHours = '00:00';
+		      			objTimesheet[index].inTime = '00:00';
+		      			objTimesheet[index].outTime ='00:00';
+		      			objTimesheet[index].remark = 'Weekend';
+		      		}
+		      		else if(objTimesheet[index].todaysDay == 'Sunday'){
+						objTimesheet[index].NormalHours = '00:00';
+		      			objTimesheet[index].inTime = '00:00';
+		      			objTimesheet[index].outTime ='00:00';
+		      			objTimesheet[index].remark = 'Weekend';
+		      		}
+				 	
+				 	jsonData = {
+						todaysDate:currentDate,
+						todaysDay:currentDay,
+						NormalHours:'540',
+						inTime:'9:30',
+						outTime:'18:30',
+						remark:''
+      				}; 
+
+      				objTimesheet.push(jsonData);	
+				  }
+			}
+			localStorage.setItem('timesheet', JSON.stringify(objTimesheet));
+		}else{
+			localStorage.clear();
+		} 
+showEntry();
+	});
+
+    var makeEntry = (function(){
+
+    	var todaysInDate = new Date(getInputTime(document.getElementById('dtIn').value));
+    	var lclTodaysInTime =new Date(localStorage.getItem('todaysInDate'));
+    	if(lclTodaysInTime.getDate() != todaysInDate.getDate())
+    	{
+    		localStorage.setItem('todaysInDate',todaysInDate);
+    	}
+    	var todaysOutDate = new Date(getInputTime(document.getElementById('dtOut').value));
+    	var inTime = todaysInDate.getHours() + ":" + todaysInDate.getMinutes();
+    	var outTime = todaysOutDate.getHours() + ":" +todaysOutDate.getMinutes();
+    	var totalMinutes = (todaysOutDate.getTime() - todaysInDate.getTime()) / (1000 * 60);
+    	var NormalHours = totalMinutes;
+      	var todaysDay = getDayOfWeek(todaysInDate.getDay());
+      	var todaysDate = todaysInDate.getDate() + "-" + getCurrentMonth(todaysInDate.getMonth()) + "-" + todaysInDate.getFullYear();
+      	var remark = document.getElementById('txtRemark').value;
+    
+      	//dataHeaderRow
+      	// style="background-color:red;"
+      	//var strFrom =   "From " +  getCurrentMonth(todaysInDate.getMonth()) + " To " + 
+      	var strPeriod = getCurrentMonth(todaysInDate.getMonth()) + " - " + todaysInDate.getFullYear();
+
+      	document.getElementById('period').innerHTML = strPeriod ;
+
+      	var objTimesheet = JSON.parse(localStorage.getItem('timesheet')) || [];
+      	var isOnLeave = document.getElementById('chkleave').checked;
+      	if(isOnLeave){
+      			NormalHours = '00:00';
+      			inTime = '00:00';
+      			outTime = '00:00';
+      			remark = 'Holiday / Leave';
+      	}
+      	if(todaysDay == 'Saturday'){
+      			NormalHours = '00:00';
+      			inTime = '00:00';
+      			outTime = '00:00';
+      			remark = 'Weekend';
+      		}
+      	else if(todaysDay == 'Sunday'){
+				NormalHours = '00:00';
+      			inTime = '00:00';
+      			outTime = '00:00';
+      			remark = 'Weekend';
+      	}
+      	var jsonData = {
+				todaysDate:todaysDate,
+				todaysDay:todaysDay,
+				NormalHours:NormalHours,
+				inTime:inTime,
+				outTime:outTime,
+				remark:remark,
+				isOnLeave:isOnLeave
+      	};
+      	var isExist = false;
+      	for(var i=0;i<objTimesheet.length;i++){
+      		
+      		if(objTimesheet[i].todaysDate == todaysDate){
+      			isExist =true;
+      			objTimesheet[i].todaysDate = todaysDate;
+      			objTimesheet[i].todaysDay = todaysDay;
+      			objTimesheet[i].NormalHours = NormalHours;
+      			objTimesheet[i].inTime = inTime;
+      			objTimesheet[i].outTime = outTime;
+      			objTimesheet[i].remark = remark;
+      			objTimesheet[i].isOnLeave = isOnLeave;
+      			break;
+      		}
+      	}
+      	if(!isExist){
+				objTimesheet.push(jsonData);	
+      	}
+      	
+      	localStorage.setItem('timesheet', JSON.stringify(objTimesheet));
+		/*var htmlString = '';
+      	for(var i=0;i<objTimesheet.length;i++){
+
+      		htmlString +=  '<tr><td id="date">'+objTimesheet[i].todaysDate+'</td><td id="day">'+objTimesheet[i].todaysDay+'</td><td id="nhours">'+objTimesheet[i].NormalHours+'</td><td id="intime">'+objTimesheet[i].inTime+'</td><td id="outtime">'+objTimesheet[i].outTime+'</td><td id="remark" colspan="3">'+objTimesheet[i].remark+'</td></tr>';	
+      	}
+      	
+      	var ele = document.getElementById('sampleTable');
+      	var strInnerHtml = ele.innerHTML + htmlString;
+      	document.getElementById('mainTable').innerHTML = strInnerHtml;*/
+      	//document.getElementById('testTable').appendChild(timesheetData);
+showEntry();
+	});
+	var showEntry =(function(){
+		var objTimesheet = JSON.parse(localStorage.getItem('timesheet')) || [];
+		var tempObject = [];
+
+		var todaysInDate = new Date(getInputTime(document.getElementById('dtIn').value));
+		var strPeriod = getCurrentMonth(todaysInDate.getMonth()) + " - " + todaysInDate.getFullYear();
+      	document.getElementById('period').innerHTML = "Period : " + strPeriod ;
+      	document.getElementById('fromto').innerHTML = "From  (1 - " + strPeriod + ") To ("+objTimesheet.length+" - " + strPeriod+")";
+
+		for(var i=1;i <= objTimesheet.length;i++){
+			for(var j=0;j<objTimesheet.length;j++){
+				var strThisDate =new Date(objTimesheet[j].todaysDate).getDate();
+				if(strThisDate == i) {
+					tempObject.push(objTimesheet[j]);
+					break;
+				}
+			}
+		}
+
+		if(tempObject.length > 0){
+			localStorage.setItem('timesheet', JSON.stringify(tempObject));
+		}
+		var htmlString = '';
+		var daybackgroundcolor = '',remarkbackgroundcolor = '';
+		//rgb(250, 247, 0); rgb(236, 234, 60);
+		var totalHours =0;
+      	for(var i=0;i<objTimesheet.length;i++) {
+      		
+      		if(objTimesheet[i].todaysDay == 'Saturday'){
+      			daybackgroundcolor ='rgb(250, 247, 0);';
+      			remarkbackgroundcolor='rgb(250, 247, 0);';
+      		}
+      		else if(objTimesheet[i].todaysDay == 'Sunday'){
+				daybackgroundcolor ='rgb(236, 234, 60);';
+				remarkbackgroundcolor='rgb(236, 234, 60);';
+      		}else if(objTimesheet[i].isOnLeave){
+      			remarkbackgroundcolor='red';
+      		}
+      		else{
+				daybackgroundcolor ='';
+				remarkbackgroundcolor='';
+      		}
+
+      		
+      		var normalHours = parseInt(parseInt(objTimesheet[i].NormalHours)/60) + ":" + parseInt(parseInt(objTimesheet[i].NormalHours)%60) ;
+      		htmlString +=  '<tr><td id="date" style="border:1px solid;width: 150px;text-align:center;">'+objTimesheet[i].todaysDate+'</td><td  id="day" style="text-align:center;border:1px solid;width: 150px;background-color:'+daybackgroundcolor+'">'+objTimesheet[i].todaysDay+'</td><td style="text-align:center;border:1px solid;width: 150px;" id="nhours">'+normalHours+'</td><td style="text-align:center;border:1px solid;width: 150px;" id="intime">'+objTimesheet[i].inTime+'</td><td style="text-align:center;border:1px solid;width: 150px;" id="outtime">'+objTimesheet[i].outTime+'</td><td id="remark"  style="text-align:center;border:1px solid;width: 150px;background-color:'+remarkbackgroundcolor+'">'+objTimesheet[i].remark+'</td></tr>';	
+      	totalHours += parseInt(objTimesheet[i].NormalHours);
+
+      	}
+      	totalHours = parseInt(totalHours/60) + ":" + parseInt(totalHours%60) ;
+		htmlString += '<tr><th colspan="2" style="border:1px solid;width: 150px;background-color:rgb(197, 203, 203)">Grand Total</th><td  style="border:1px solid;width: 150px;background-color:rgb(197, 203, 203);text-align:center;"><b>'+totalHours+'</b></td><td style="border:1px solid;width: 150px;background-color:rgb(197, 203, 203)"></td><td style="border:1px solid;width: 150px;background-color:rgb(197, 203, 203)"></td><td  style="border:1px solid;width: 150px;background-color:rgb(197, 203, 203)" ></td></tr>';
+      	
+      	var ele = document.getElementById('sampleTable');
+      	var strInnerHtml = ele.innerHTML + htmlString;
+      	document.getElementById('mainTable').innerHTML = strInnerHtml;
+	});
+	var getCurrentMonth = (function(index){
+		var arrMonths = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sept','Nov','Dec'];
+		return arrMonths[index];
+	});
+	var getDayOfWeek = (function(index){
+    	var arrDays = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+		return arrDays[index];		
+	});
+	var setOutTime = (function(){
+		var outTime = new Date();
+    	document.getElementById('dtOut').value = setInputTime(outTime);
+	});
+	var setInTime = (function(){
+		var inTime = new Date();
+		var lclTodaysInTime =new Date(localStorage.getItem('todaysInDate'));
+    	if(lclTodaysInTime.getDate() == inTime.getDate())
+    	{
+    		inTime=lclTodaysInTime;
+    	}
+    	document.getElementById('dtIn').value = setInputTime(inTime);
+	});
+    window.onload = (function(){
+    	var inTime = new Date();
+		var outTime = new Date().addHours(9);
+    	document.getElementById('dtIn').value = setInputTime(inTime);
+    	document.getElementById('dtOut').value = setInputTime(outTime);
+    	showEntry();
+    	
+    });
+	
+</script>
+
+</body>
+</html>
